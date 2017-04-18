@@ -1,7 +1,7 @@
-package com.gojuno.cmd.common
+package com.gojuno.commander.os
 
-import com.gojuno.cmd.common.Os.Linux
-import com.gojuno.cmd.common.Os.Mac
+import com.gojuno.commander.os.Os.Linux
+import com.gojuno.commander.os.Os.Mac
 import rx.Emitter.BackpressureMode
 import rx.Observable
 import rx.schedulers.Schedulers.io

@@ -1,4 +1,4 @@
-package com.gojuno.cmd.common
+package com.gojuno.commander.os
 
 import org.assertj.core.api.Assertions.assertThat
 import org.jetbrains.spek.api.Spek

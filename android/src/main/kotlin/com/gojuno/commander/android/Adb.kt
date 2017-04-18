@@ -1,9 +1,9 @@
 package com.gojuno.commander.android
 
-import com.gojuno.cmd.common.Notification
-import com.gojuno.cmd.common.log
-import com.gojuno.cmd.common.nanosToHumanReadableTime
-import com.gojuno.cmd.common.process
+import com.gojuno.commander.os.Notification
+import com.gojuno.commander.os.log
+import com.gojuno.commander.os.nanosToHumanReadableTime
+import com.gojuno.commander.os.process
 import rx.Observable
 import rx.Single
 import java.io.File
@@ -51,7 +51,7 @@ fun connectedAdbDevices(): Observable<Set<AdbDevice>> = process(listOf(adb, "dev
         }
         .doOnError { log("Error during getting connectedAdbDevices, error = $it") }
 
-fun AdbDevice.log(message: String) = com.gojuno.cmd.common.log("[$id] $message")
+fun AdbDevice.log(message: String) = com.gojuno.commander.os.log("[$id] $message")
 
 fun AdbDevice.installApk(pathToApk: String): Observable<Unit> {
     val adbDevice = this
