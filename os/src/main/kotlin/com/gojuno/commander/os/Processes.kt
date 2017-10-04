@@ -13,7 +13,7 @@ import java.util.concurrent.TimeoutException
 
 val home: String by lazy { System.getenv("HOME") }
 
-fun log(message: String): Unit = println("[${Date()}]: $message")
+fun log(message: String) = println("[${Date()}]: $message")
 
 sealed class Notification {
     data class Start(val process: Process, val output: File) : Notification()
@@ -24,6 +24,7 @@ fun process(
         commandAndArgs: List<String>,
         timeout: Pair<Int, TimeUnit>? = 30 to SECONDS,
         redirectOutputTo: File? = null,
+        keepOutputOnExit: Boolean = false,
         unbufferedOutput: Boolean = false,
         print: Boolean = false,
         destroyOnUnsubscribe: Boolean = false
@@ -33,8 +34,10 @@ fun process(
                 log("\nRun: $commandAndArgs")
             }
 
-            val outputFile = when (redirectOutputTo) {
-                null -> prepareOutputFile(commandAndArgs)
+            val outputFile = when {
+                redirectOutputTo == null || redirectOutputTo.isDirectory -> {
+                    prepareOutputFile(redirectOutputTo, keepOutputOnExit)
+                }
                 else -> redirectOutputTo
             }
 
@@ -102,13 +105,15 @@ fun process(
         .subscribeOn(io()) // Prevent subscriber thread from unnecessary blocking.
         .observeOn(io())   // Allow to wait for process exit code.
 
-private fun prepareOutputFile(commandAndArgs: List<String>): File = Random()
+private fun prepareOutputFile(parent: File?, keepOnExit: Boolean): File = Random()
         .nextInt()
         .let { System.nanoTime() + it }
         .let { name ->
-            File("$name.output").apply {
+            File(parent, "$name.output").apply {
                 createNewFile()
-                deleteOnExit()
+                if (!keepOnExit) {
+                    deleteOnExit()
+                }
             }
         }
 
