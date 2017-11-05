@@ -7,6 +7,7 @@ import com.gojuno.commander.os.process
 import rx.Observable
 import rx.Single
 import java.io.File
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeUnit.MINUTES
 import java.util.concurrent.TimeUnit.SECONDS
 
@@ -53,12 +54,12 @@ fun connectedAdbDevices(): Observable<Set<AdbDevice>> = process(listOf(adb, "dev
 
 fun AdbDevice.log(message: String) = com.gojuno.commander.os.log("[$id] $message")
 
-fun AdbDevice.installApk(pathToApk: String): Observable<Unit> {
+fun AdbDevice.installApk(pathToApk: String, timeout: Pair<Int, TimeUnit> = 5 to MINUTES): Observable<Unit> {
     val adbDevice = this
     val installApk = process(
             commandAndArgs = listOf(adb, "-s", adbDevice.id, "install", "-r", pathToApk),
             unbufferedOutput = true,
-            timeout = 5 to MINUTES
+            timeout = timeout
     )
 
     return Observable
@@ -90,11 +91,11 @@ fun AdbDevice.installApk(pathToApk: String): Observable<Unit> {
             .doOnError { adbDevice.log("Error during installing apk: $it, pathToApk = $pathToApk") }
 }
 
-fun AdbDevice.pullFolder(folderOnDevice: String, folderOnHostMachine: File, logErrors: Boolean): Single<Boolean> {
+fun AdbDevice.pullFolder(folderOnDevice: String, folderOnHostMachine: File, logErrors: Boolean, timeout: Pair<Int, TimeUnit> = 60 to SECONDS): Single<Boolean> {
     val adbDevice = this
     val pullFiles = process(
             commandAndArgs = listOf(adb, "-s", adbDevice.id, "pull", folderOnDevice, folderOnHostMachine.absolutePath),
-            timeout = 60 to SECONDS,
+            timeout = timeout,
             unbufferedOutput = true
     )
 
