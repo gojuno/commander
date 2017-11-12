@@ -61,10 +61,11 @@ fun process(
             }
 
             val process: Process = ProcessBuilder(command)
+                    .redirectErrorStream(true)
                     .let {
                         when (unbufferedOutput) {
-                            true -> it
-                            else -> it.redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.to(outputFile))
+                            true -> it.redirectOutput(File("/dev/null"))
+                            else -> it.redirectOutput(ProcessBuilder.Redirect.to(outputFile))
                         }
                     }
                     .start()
