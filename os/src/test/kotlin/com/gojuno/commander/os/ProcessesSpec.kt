@@ -13,7 +13,7 @@ class ProcessesSpec : Spek({
 
     describe("null device file") {
 
-        val result = File(os().nullDeviceFilePath)
+        val result = os().nullDeviceFile()
 
         it("is writable") {
             assertThat(result).canWrite()

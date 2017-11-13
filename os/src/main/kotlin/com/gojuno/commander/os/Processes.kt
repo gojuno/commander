@@ -66,7 +66,7 @@ fun process(
                     .redirectErrorStream(true)
                     .let {
                         when (unbufferedOutput) {
-                            true -> it.redirectOutput(File(os().nullDeviceFilePath))
+                            true -> it.redirectOutput(os().nullDeviceFile())
                             else -> it.redirectOutput(ProcessBuilder.Redirect.to(outputFile))
                         }
                     }
@@ -140,11 +140,13 @@ internal fun os(): Os {
     }
 }
 
-internal val Os.nullDeviceFilePath: String
-    get() = when(this) {
+internal fun Os.nullDeviceFile(): File {
+    val path = when (this) {
         Linux, Mac -> "/dev/null"
         Windows -> "NUL"
     }
+    return File(path)
+}
 
 fun Long.nanosToHumanReadableTime(): String {
     var seconds: Long = TimeUnit.NANOSECONDS.toSeconds(this)
