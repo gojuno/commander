@@ -5,10 +5,20 @@ import org.jetbrains.spek.api.Spek
 import org.jetbrains.spek.api.dsl.describe
 import org.jetbrains.spek.api.dsl.it
 import org.jetbrains.spek.api.dsl.on
+import java.io.File
 import java.util.concurrent.TimeUnit.MINUTES
 import java.util.concurrent.TimeUnit.SECONDS
 
 class ProcessesSpec : Spek({
+
+    describe("null device file") {
+
+        val result = os().nullDeviceFile()
+
+        it("is writable") {
+            assertThat(result).canWrite()
+        }
+    }
 
     describe("nanosToHumanReadableTime") {
 
