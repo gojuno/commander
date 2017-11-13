@@ -2,6 +2,7 @@ package com.gojuno.commander.os
 
 import com.gojuno.commander.os.Os.Linux
 import com.gojuno.commander.os.Os.Mac
+import com.gojuno.commander.os.Os.Windows
 import rx.Emitter.BackpressureMode
 import rx.Observable
 import rx.schedulers.Schedulers.io
@@ -57,6 +58,7 @@ fun process(
                 // that output will be available for consuming.
                     Linux -> listOf("script", outputFile.absolutePath, "--flush", "-c", commandAndArgs.joinToString(separator = " "))
                     Mac -> listOf("script", "-F", outputFile.absolutePath, *commandAndArgs.toTypedArray())
+                    Windows -> throw IllegalStateException("Unbuffered output is not supported on Windows")
                 }
             }
 
@@ -64,7 +66,7 @@ fun process(
                     .redirectErrorStream(true)
                     .let {
                         when (unbufferedOutput) {
-                            true -> it.redirectOutput(File("/dev/null"))
+                            true -> it.redirectOutput(File(os().nullDeviceFilePath))
                             else -> it.redirectOutput(ProcessBuilder.Redirect.to(outputFile))
                         }
                     }
@@ -120,20 +122,29 @@ private fun prepareOutputFile(parent: File?, keepOnExit: Boolean): File = Random
 
 enum class Os {
     Linux,
-    Mac
+    Mac,
+    Windows
 }
 
-private fun os(): Os {
+internal fun os(): Os {
     val os = System.getProperty("os.name", "unknown").toLowerCase(Locale.ENGLISH)
 
     if (os.contains("mac") || os.contains("darwin")) {
         return Mac
     } else if (os.contains("linux")) {
         return Linux
+    } else if (os.contains("windows")) {
+        return Windows
     } else {
         throw IllegalStateException("Unsupported os $os, only ${Os.values()} are supported.")
     }
 }
+
+internal val Os.nullDeviceFilePath: String
+    get() = when(this) {
+        Linux, Mac -> "/dev/null"
+        Windows -> "NUL"
+    }
 
 fun Long.nanosToHumanReadableTime(): String {
     var seconds: Long = TimeUnit.NANOSECONDS.toSeconds(this)
