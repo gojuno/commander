@@ -13,6 +13,14 @@ import java.util.concurrent.TimeUnit.SECONDS
 
 val androidHome: String by lazy { System.getenv("ANDROID_HOME") }
 val adb: String by lazy { "$androidHome/platform-tools/adb" }
+private val buildTools: String? by lazy {
+    File(androidHome, "build-tools")
+            .listFiles()
+            .sortedArray()
+            .lastOrNull()
+            ?.absolutePath
+}
+val aapt: String by lazy { buildTools?.let { "$buildTools/aapt" } ?: "" }
 
 fun connectedAdbDevices(): Observable<Set<AdbDevice>> = process(listOf(adb, "devices"), unbufferedOutput = true)
         .ofType(Notification.Exit::class.java)
