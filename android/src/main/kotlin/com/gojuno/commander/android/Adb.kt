@@ -22,7 +22,10 @@ private val buildTools: String? by lazy {
 }
 val aapt: String by lazy { buildTools?.let { "$buildTools/aapt" } ?: "" }
 
-fun connectedAdbDevices(): Observable<Set<AdbDevice>> = process(listOf(adb, "devices"), unbufferedOutput = true)
+fun connectedAdbDevices(unbufferedOutput: Boolean = true): Observable<Set<AdbDevice>> = process(
+        listOf(adb, "devices"),
+        unbufferedOutput = unbufferedOutput
+)
         .ofType(Notification.Exit::class.java)
         .map { it.output.readText() }
         .map {
@@ -62,11 +65,15 @@ fun connectedAdbDevices(): Observable<Set<AdbDevice>> = process(listOf(adb, "dev
 
 fun AdbDevice.log(message: String) = com.gojuno.commander.os.log("[$id] $message")
 
-fun AdbDevice.installApk(pathToApk: String, timeout: Pair<Int, TimeUnit> = 2 to MINUTES): Observable<Unit> {
+fun AdbDevice.installApk(
+        pathToApk: String,
+        timeout: Pair<Int, TimeUnit> = 2 to MINUTES,
+        unbufferedOutput: Boolean = true
+): Observable<Unit> {
     val adbDevice = this
     val installApk = process(
             commandAndArgs = listOf(adb, "-s", adbDevice.id, "install", "-r", pathToApk),
-            unbufferedOutput = true,
+            unbufferedOutput = unbufferedOutput,
             timeout = timeout
     )
 
@@ -99,12 +106,18 @@ fun AdbDevice.installApk(pathToApk: String, timeout: Pair<Int, TimeUnit> = 2 to 
             .doOnError { adbDevice.log("Error during installing apk: $it, pathToApk = $pathToApk") }
 }
 
-fun AdbDevice.pullFolder(folderOnDevice: String, folderOnHostMachine: File, logErrors: Boolean, timeout: Pair<Int, TimeUnit> = 60 to SECONDS): Single<Boolean> {
+fun AdbDevice.pullFolder(
+        folderOnDevice: String,
+        folderOnHostMachine: File,
+        logErrors: Boolean,
+        timeout: Pair<Int, TimeUnit> = 60 to SECONDS,
+        unbufferedOutput: Boolean = true
+): Single<Boolean> {
     val adbDevice = this
     val pullFiles = process(
             commandAndArgs = listOf(adb, "-s", adbDevice.id, "pull", folderOnDevice, folderOnHostMachine.absolutePath),
             timeout = timeout,
-            unbufferedOutput = true
+            unbufferedOutput = unbufferedOutput
     )
 
     return pullFiles
