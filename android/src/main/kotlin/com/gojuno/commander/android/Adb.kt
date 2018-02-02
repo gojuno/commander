@@ -22,10 +22,13 @@ private val buildTools: String? by lazy {
 }
 val aapt: String by lazy { buildTools?.let { "$buildTools/aapt" } ?: "" }
 
-fun deviceModel(serial: String): Observable<String> = process(listOf(adb, "-s", serial, "shell", "getprop ro.product.model undefined"))
+fun deviceModel(adbDevice: AdbDevice): Single<String> = process(listOf(adb, "-s", adbDevice.id, "shell", "getprop ro.product.model undefined"))
         .ofType(Notification.Exit::class.java)
+        .trimmedOutput()
+        .doOnError { log("Could not get model name of device ${adbDevice.id}, error = $it") }
+
+internal fun Observable<Notification.Exit>.trimmedOutput() = toSingle()
         .map { it.output.readText().trim() }
-        .doOnError { log("Could not get model name of device $serial, error = $it") }
 
 fun connectedAdbDevices(): Observable<Set<AdbDevice>> = process(listOf(adb, "devices"), unbufferedOutput = true)
         .ofType(Notification.Exit::class.java)
@@ -52,19 +55,19 @@ fun connectedAdbDevices(): Observable<Set<AdbDevice>> = process(listOf(adb, "dev
                     .filter { it.isNotEmpty() }
                     .filter { it.contains("online") || it.contains("device") }
         }
-        .flatMap { line ->
-            deviceModel(line.substringBefore("\t"))
-                    .map { model ->
-                        AdbDevice(
-                                id = line.substringBefore("\t"),
-                                model = model,
-                                online = when {
-                                    line.contains("offline", ignoreCase = true) -> false
-                                    line.contains("device", ignoreCase = true) -> true
-                                    else -> throw IllegalStateException("Unknown adb output for device: $line")
-                                }
-                        )
-                    }
+        .map { line ->
+            val serial = line.substringBefore("\t")
+            val online = when {
+                line.contains("offline", ignoreCase = true) -> false
+                line.contains("device", ignoreCase = true) -> true
+                else -> throw IllegalStateException("Unknown adb output for device: $line")
+            }
+            AdbDevice(id = serial, online = online)
+        }
+        .flatMapSingle { device ->
+            deviceModel(device).map { model ->
+                device.copy(model = model)
+            }
         }
         .toList()
         .map { it.toSet() }
