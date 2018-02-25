@@ -48,17 +48,15 @@ fun process(
                 log("$commandAndArgs\n, outputFile = $outputFile")
             }
 
-            val command: List<String>
-
-            when (unbufferedOutput) {
-                false -> command = commandAndArgs
-                true -> command = when (os()) {
-                // Some programs, in particular "emulator" do not always flush output
-                // after printing so we have to force unbuffered mode to make sure
-                // that output will be available for consuming.
+            val command: List<String> = when (unbufferedOutput) {
+                false -> commandAndArgs
+                true -> when (os()) {
+                    // Some programs, in particular "emulator" do not always flush output
+                    // after printing so we have to force unbuffered mode to make sure
+                    // that output will be available for consuming.
                     Linux -> listOf("script", outputFile.absolutePath, "--flush", "-c", commandAndArgs.joinToString(separator = " "))
                     Mac -> listOf("script", "-F", outputFile.absolutePath, *commandAndArgs.toTypedArray())
-                    Windows -> throw IllegalStateException("Unbuffered output is not supported on Windows")
+                    Windows -> commandAndArgs
                 }
             }
 
