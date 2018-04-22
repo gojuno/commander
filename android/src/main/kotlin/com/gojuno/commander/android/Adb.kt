@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeUnit.MINUTES
 import java.util.concurrent.TimeUnit.SECONDS
 
-val androidHome: String by lazy { System.getenv("ANDROID_HOME") }
+val androidHome: String by lazy { requireNotNull(System.getenv("ANDROID_HOME")) { "Please specify ANDROID_HOME env variable" } }
 val adb: String by lazy { "$androidHome/platform-tools/adb" }
 private val buildTools: String? by lazy {
     File(androidHome, "build-tools")
