@@ -78,7 +78,7 @@ fun AdbDevice.log(message: String) = com.gojuno.commander.os.log("[$id] $message
 fun AdbDevice.installApk(pathToApk: String, timeout: Pair<Int, TimeUnit> = 2 to MINUTES): Observable<Unit> {
     val adbDevice = this
     val installApk = process(
-            commandAndArgs = listOf(adb, "-s", adbDevice.id, "install", "-r", pathToApk),
+            commandAndArgs = listOf(adb, "-s", adbDevice.id, "install", "-r", "-d", pathToApk),
             unbufferedOutput = true,
             timeout = timeout
     )
