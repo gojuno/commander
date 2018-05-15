@@ -42,7 +42,7 @@ fun connectedAdbDevices(): Observable<Set<AdbDevice>> = process(listOf(adb, "dev
         .retry { retryCount, exception ->
             val shouldRetry = retryCount < 5 && exception is IllegalStateException
             if (shouldRetry) {
-                log("runningEmulators: retrying $exception.")
+                log("connectedAdbDevices: retrying $exception.")
             }
 
             shouldRetry
