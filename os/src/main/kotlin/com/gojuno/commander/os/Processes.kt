@@ -63,8 +63,10 @@ fun process(
             val process: Process = ProcessBuilder(command)
                     .redirectErrorStream(true)
                     .let {
-                        when (unbufferedOutput) {
-                            true -> it.redirectOutput(os().nullDeviceFile())
+                        when {
+                            unbufferedOutput && os() !== Windows -> {
+                                it.redirectOutput(os().nullDeviceFile())
+                            }
                             else -> it.redirectOutput(ProcessBuilder.Redirect.to(outputFile))
                         }
                     }
@@ -127,12 +129,12 @@ enum class Os {
 internal fun os(): Os {
     val os = System.getProperty("os.name", "unknown").toLowerCase(Locale.ENGLISH)
 
-    if (os.contains("mac") || os.contains("darwin")) {
-        return Mac
+    return if (os.contains("mac") || os.contains("darwin")) {
+        Mac
     } else if (os.contains("linux")) {
-        return Linux
+        Linux
     } else if (os.contains("windows")) {
-        return Windows
+        Windows
     } else {
         throw IllegalStateException("Unsupported os $os, only ${Os.values()} are supported.")
     }
