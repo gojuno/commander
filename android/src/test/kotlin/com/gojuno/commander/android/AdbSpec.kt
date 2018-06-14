@@ -16,7 +16,7 @@ class AdbSpec : Spek({
         }
 
         it("is trimmed") {
-            Observable.just(Notification.Exit(file))
+            Observable.just<Notification>(Notification.Exit(file))
                     .trimmedOutput()
                     .test()
                     .assertValue("test")
