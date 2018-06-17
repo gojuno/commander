@@ -22,13 +22,18 @@ private val buildTools: String? by lazy {
 }
 val aapt: String by lazy { buildTools?.let { "$buildTools/aapt" } ?: "" }
 
-fun deviceModel(adbDevice: AdbDevice): Single<String> = process(listOf(adb, "-s", adbDevice.id, "shell", "getprop ro.product.model undefined"))
+internal fun Observable<Notification>.trimmedOutput() = this
         .ofType(Notification.Exit::class.java)
-        .trimmedOutput()
-        .doOnError { log("Could not get model name of device ${adbDevice.id}, error = $it") }
-
-internal fun Observable<Notification.Exit>.trimmedOutput() = toSingle()
+        .toSingle()
         .map { it.output.readText().trim() }
+
+fun AdbDevice.externalStorage(): Single<String> = process(listOf(adb, "-s", id, "shell", "printenv", "EXTERNAL_STORAGE"))
+        .trimmedOutput()
+        .doOnError { log("Could not get external storage of device $id, error = $it") }
+
+fun AdbDevice.deviceModel(): Single<String> = process(listOf(adb, "-s", id, "shell", "getprop ro.product.model undefined"))
+        .trimmedOutput()
+        .doOnError { log("Could not get model name of device $id, error = $it") }
 
 fun connectedAdbDevices(): Observable<Set<AdbDevice>> = process(listOf(adb, "devices"), unbufferedOutput = true)
         .ofType(Notification.Exit::class.java)
@@ -65,7 +70,7 @@ fun connectedAdbDevices(): Observable<Set<AdbDevice>> = process(listOf(adb, "dev
             AdbDevice(id = serial, online = online)
         }
         .flatMapSingle { device ->
-            deviceModel(device).map { model ->
+            device.deviceModel().map { model ->
                 device.copy(model = model)
             }
         }
