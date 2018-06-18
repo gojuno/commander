@@ -12,7 +12,7 @@ import java.util.concurrent.TimeUnit.MINUTES
 import java.util.concurrent.TimeUnit.SECONDS
 
 val androidHome: String by lazy { requireNotNull(System.getenv("ANDROID_HOME")) { "Please specify ANDROID_HOME env variable" } }
-val adb: String by lazy { "$androidHome/platform-tools/adb" }
+val adb: String by lazy { "$androidHome${File.pathSeparator}platform-tools${File.pathSeparator}adb" }
 private val buildTools: String? by lazy {
     File(androidHome, "build-tools")
             .listFiles()
@@ -20,7 +20,7 @@ private val buildTools: String? by lazy {
             .lastOrNull()
             ?.absolutePath
 }
-val aapt: String by lazy { buildTools?.let { "$buildTools/aapt" } ?: "" }
+val aapt: String by lazy { buildTools?.let { "$buildTools${File.pathSeparator}aapt" } ?: "" }
 
 internal fun Observable<Notification>.trimmedOutput() = this
         .ofType(Notification.Exit::class.java)
