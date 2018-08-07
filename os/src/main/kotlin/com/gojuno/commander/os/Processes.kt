@@ -126,7 +126,7 @@ enum class Os {
     Windows
 }
 
-internal fun os(): Os {
+fun os(): Os {
     val os = System.getProperty("os.name", "unknown").toLowerCase(Locale.ENGLISH)
 
     return if (os.contains("mac") || os.contains("darwin")) {
