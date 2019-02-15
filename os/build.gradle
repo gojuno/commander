@@ -4,7 +4,6 @@ apply from: '../gradle/publishing.gradle'
 
 dependencies {
     compile libraries.kotlinStd
-    compile libraries.kotlinRuntime
     compile libraries.kotlinReflect
     compile libraries.rxJava
 }
