@@ -11,7 +11,15 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeUnit.MINUTES
 import java.util.concurrent.TimeUnit.SECONDS
 
-val androidHome: String by lazy { requireNotNull(System.getenv("ANDROID_HOME")) { "Please specify ANDROID_HOME env variable" } }
+val androidHome: String by lazy {
+    // Resolution order is from https://developer.android.com/studio/command-line/variables#envar
+    val androidHome = System.getenv("ANDROID_HOME")
+    if (androidHome != null) {
+        return@lazy androidHome
+    }
+    val androidSdkRoot = System.getenv("ANDROID_SDK_ROOT")
+    requireNotNull(androidSdkRoot) { "Please specify ANDROID_SDK_ROOT env variable" }
+}
 val adb: String by lazy { "$androidHome${File.pathSeparator}platform-tools${File.pathSeparator}adb" }
 private val buildTools: String? by lazy {
     File(androidHome, "build-tools")
