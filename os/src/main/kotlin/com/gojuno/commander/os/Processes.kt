@@ -3,11 +3,13 @@ package com.gojuno.commander.os
 import com.gojuno.commander.os.Os.Linux
 import com.gojuno.commander.os.Os.Mac
 import com.gojuno.commander.os.Os.Windows
-import rx.Emitter.BackpressureMode
-import rx.Observable
-import rx.schedulers.Schedulers.io
+import io.reactivex.Observable
+import io.reactivex.ObservableEmitter
+import io.reactivex.schedulers.Schedulers.io
 import java.io.File
-import java.util.*
+import java.util.Date
+import java.util.Random
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeUnit.SECONDS
 import java.util.concurrent.TimeoutException
@@ -29,83 +31,81 @@ fun process(
         unbufferedOutput: Boolean = false,
         print: Boolean = false,
         destroyOnUnsubscribe: Boolean = false
-): Observable<Notification> = Observable.create<Notification>(
-        { emitter ->
-            if (print) {
-                log("\nRun: $commandAndArgs")
-            }
+): Observable<Notification> = Observable.create { emitter: ObservableEmitter<Notification> ->
+    if (print) {
+        log("\nRun: $commandAndArgs")
+    }
 
-            val outputFile = when {
-                redirectOutputTo == null || redirectOutputTo.isDirectory -> {
-                    prepareOutputFile(redirectOutputTo, keepOutputOnExit)
+    val outputFile = when {
+        redirectOutputTo == null || redirectOutputTo.isDirectory -> {
+            prepareOutputFile(redirectOutputTo, keepOutputOnExit)
+        }
+        else -> redirectOutputTo
+    }
+
+    outputFile.apply { parentFile?.mkdirs() }
+
+    if (print) {
+        log("$commandAndArgs\n, outputFile = $outputFile")
+    }
+
+    val command: List<String> = when (unbufferedOutput) {
+        false -> commandAndArgs
+        true -> when (os()) {
+            // Some programs, in particular "emulator" do not always flush output
+            // after printing so we have to force unbuffered mode to make sure
+            // that output will be available for consuming.
+            Linux -> listOf("script", outputFile.absolutePath, "--flush", "-c", commandAndArgs.joinToString(separator = " "))
+            Mac -> listOf("script", "-F", outputFile.absolutePath, *commandAndArgs.toTypedArray())
+            Windows -> commandAndArgs
+        }
+    }
+
+    val process: Process = ProcessBuilder(command)
+        .redirectErrorStream(true)
+        .let {
+            when {
+                unbufferedOutput && os() !== Windows -> {
+                    it.redirectOutput(os().nullDeviceFile())
                 }
-                else -> redirectOutputTo
+                else -> it.redirectOutput(ProcessBuilder.Redirect.to(outputFile))
             }
+        }
+        .start()
 
-            outputFile.apply { parentFile?.mkdirs() }
+    if (destroyOnUnsubscribe) {
+        emitter.setCancellable {
+            process.destroy()
+        }
+    }
 
-            if (print) {
-                log("$commandAndArgs\n, outputFile = $outputFile")
-            }
+    emitter.onNext(Notification.Start(process, outputFile))
 
-            val command: List<String> = when (unbufferedOutput) {
-                false -> commandAndArgs
-                true -> when (os()) {
-                    // Some programs, in particular "emulator" do not always flush output
-                    // after printing so we have to force unbuffered mode to make sure
-                    // that output will be available for consuming.
-                    Linux -> listOf("script", outputFile.absolutePath, "--flush", "-c", commandAndArgs.joinToString(separator = " "))
-                    Mac -> listOf("script", "-F", outputFile.absolutePath, *commandAndArgs.toTypedArray())
-                    Windows -> commandAndArgs
-                }
-            }
+    if (timeout == null) {
+        process.waitFor()
+    } else {
+        if (process.waitFor(timeout.first.toLong(), timeout.second).not()) {
+            throw TimeoutException("Process $command timed out ${timeout.first} ${timeout.second} waiting for exit code ${outputFile.readText()}")
+        }
+    }
 
-            val process: Process = ProcessBuilder(command)
-                    .redirectErrorStream(true)
-                    .let {
-                        when {
-                            unbufferedOutput && os() !== Windows -> {
-                                it.redirectOutput(os().nullDeviceFile())
-                            }
-                            else -> it.redirectOutput(ProcessBuilder.Redirect.to(outputFile))
-                        }
-                    }
-                    .start()
+    val exitCode = process.exitValue()
 
-            if (destroyOnUnsubscribe) {
-                emitter.setCancellation {
-                    process.destroy()
-                }
-            }
+    if (print) {
+        log("Exit code $exitCode: $commandAndArgs,\noutput = \n${outputFile.readText()}")
+    }
 
-            emitter.onNext(Notification.Start(process, outputFile))
-
-            if (timeout == null) {
-                process.waitFor()
-            } else {
-                if (process.waitFor(timeout.first.toLong(), timeout.second).not()) {
-                    throw TimeoutException("Process $command timed out ${timeout.first} ${timeout.second} waiting for exit code ${outputFile.readText()}")
-                }
-            }
-
-            val exitCode = process.exitValue()
-
-            if (print) {
-                log("Exit code $exitCode: $commandAndArgs,\noutput = \n${outputFile.readText()}")
-            }
-
-            when (exitCode) {
-                0 -> {
-                    emitter.onNext(Notification.Exit(outputFile))
-                    emitter.onCompleted()
-                }
-                else -> {
-                    emitter.onError(IllegalStateException("Process $command exited with non-zero code $exitCode ${outputFile.readText()}"))
-                }
-            }
-        }, BackpressureMode.LATEST
-)
-        .subscribeOn(io()) // Prevent subscriber thread from unnecessary blocking.
+    when (exitCode) {
+        0 -> {
+            emitter.onNext(Notification.Exit(outputFile))
+            emitter.onComplete()
+        }
+        else -> {
+            emitter.onError(IllegalStateException("Process $command exited with non-zero code $exitCode ${outputFile.readText()}"))
+        }
+    }
+}
+    .subscribeOn(io()) // Prevent subscriber thread from unnecessary blocking.
         .observeOn(io())   // Allow to wait for process exit code.
 
 private fun prepareOutputFile(parent: File?, keepOnExit: Boolean): File = Random()

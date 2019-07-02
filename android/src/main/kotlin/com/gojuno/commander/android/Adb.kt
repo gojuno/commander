@@ -1,30 +1,33 @@
+@file:Suppress("unused")
+
 package com.gojuno.commander.android
 
 import com.gojuno.commander.os.Notification
 import com.gojuno.commander.os.log
 import com.gojuno.commander.os.nanosToHumanReadableTime
 import com.gojuno.commander.os.process
-import rx.Observable
-import rx.Single
+import io.reactivex.Observable
+import io.reactivex.Single
 import java.io.File
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeUnit.MINUTES
 import java.util.concurrent.TimeUnit.SECONDS
+import kotlin.system.exitProcess
 
 val androidHome: String by lazy { requireNotNull(System.getenv("ANDROID_HOME")) { "Please specify ANDROID_HOME env variable" } }
 val adb: String by lazy { "$androidHome${File.pathSeparator}platform-tools${File.pathSeparator}adb" }
 private val buildTools: String? by lazy {
     File(androidHome, "build-tools")
             .listFiles()
-            .sortedArray()
-            .lastOrNull()
+            ?.sortedArray()
+            ?.lastOrNull()
             ?.absolutePath
 }
 val aapt: String by lazy { buildTools?.let { "$buildTools${File.pathSeparator}aapt" } ?: "" }
 
 internal fun Observable<Notification>.trimmedOutput() = this
         .ofType(Notification.Exit::class.java)
-        .toSingle()
+        .singleOrError()
         .map { it.output.readText().trim() }
 
 fun AdbDevice.externalStorage(): Single<String> = process(listOf(adb, "-s", id, "shell", "printenv", "EXTERNAL_STORAGE"))
@@ -35,7 +38,7 @@ fun AdbDevice.deviceModel(): Single<String> = process(listOf(adb, "-s", id, "she
         .trimmedOutput()
         .doOnError { log("Could not get model name of device $id, error = $it") }
 
-fun connectedAdbDevices(): Observable<Set<AdbDevice>> = process(listOf(adb, "devices"), unbufferedOutput = true)
+fun connectedAdbDevices(): Single<Set<AdbDevice>> = process(listOf(adb, "devices"), unbufferedOutput = true)
         .ofType(Notification.Exit::class.java)
         .map { it.output.readText() }
         .map {
@@ -52,8 +55,8 @@ fun connectedAdbDevices(): Observable<Set<AdbDevice>> = process(listOf(adb, "dev
 
             shouldRetry
         }
-        .flatMapIterable {
-            it
+        .flatMapIterable { adbStdOut ->
+          adbStdOut
                     .substringAfter("List of devices attached")
                     .split(System.lineSeparator())
                     .map { it.trim() }
@@ -81,9 +84,8 @@ fun connectedAdbDevices(): Observable<Set<AdbDevice>> = process(listOf(adb, "dev
 fun AdbDevice.log(message: String) = com.gojuno.commander.os.log("[$id] $message")
 
 fun AdbDevice.installApk(pathToApk: String, timeout: Pair<Int, TimeUnit> = 2 to MINUTES): Observable<Unit> {
-    val adbDevice = this
     val installApk = process(
-            commandAndArgs = listOf(adb, "-s", adbDevice.id, "install", "-r", pathToApk),
+            commandAndArgs = listOf(adb, "-s", id, "install", "-r", pathToApk),
             unbufferedOutput = true,
             timeout = timeout
     )
@@ -104,23 +106,22 @@ fun AdbDevice.installApk(pathToApk: String, timeout: Pair<Int, TimeUnit> = 2 to 
 
                 when (success) {
                     true -> {
-                        adbDevice.log("Successfully installed apk in ${duration.nanosToHumanReadableTime()}, pathToApk = $pathToApk")
+                        log("Successfully installed apk in ${duration.nanosToHumanReadableTime()}, pathToApk = $pathToApk")
                     }
 
                     false -> {
-                        adbDevice.log("Failed to install apk $pathToApk")
-                        System.exit(1)
+                        log("Failed to install apk $pathToApk")
+                        exitProcess(1)
                     }
                 }
             }
-            .doOnSubscribe { adbDevice.log("Installing apk... pathToApk = $pathToApk") }
-            .doOnError { adbDevice.log("Error during installing apk: $it, pathToApk = $pathToApk") }
+            .doOnSubscribe { log("Installing apk... pathToApk = $pathToApk") }
+            .doOnError { log("Error during installing apk: $it, pathToApk = $pathToApk") }
 }
 
 fun AdbDevice.pullFolder(folderOnDevice: String, folderOnHostMachine: File, logErrors: Boolean, timeout: Pair<Int, TimeUnit> = 60 to SECONDS): Single<Boolean> {
-    val adbDevice = this
     val pullFiles = process(
-            commandAndArgs = listOf(adb, "-s", adbDevice.id, "pull", folderOnDevice, folderOnHostMachine.absolutePath),
+            commandAndArgs = listOf(adb, "-s", id, "pull", folderOnDevice, folderOnHostMachine.absolutePath),
             timeout = timeout,
             unbufferedOutput = true
     )
@@ -128,15 +129,47 @@ fun AdbDevice.pullFolder(folderOnDevice: String, folderOnHostMachine: File, logE
     return pullFiles
             .ofType(Notification.Exit::class.java)
             .retry(3)
-            .doOnError { error -> if (logErrors) log("Failed to pull files from $folderOnDevice to $folderOnHostMachine failed: $error") }
+            .doOnError { error -> if (logErrors) log("Failed to pull files from $folderOnDevice to $folderOnHostMachine: $error") }
             .map { true }
             .onErrorReturn { false }
-            .toSingle()
+            .singleOrError()
+}
+
+fun AdbDevice.deleteFolder(folderOnDevice: String, logErrors: Boolean, timeout: Pair<Int, TimeUnit> = 60 to SECONDS): Single<Boolean> {
+    val deleteFolder = process(
+            commandAndArgs = listOf(adb, "-s", id, "shell", "rm", "-r", folderOnDevice),
+            timeout = timeout,
+            unbufferedOutput = true
+    )
+
+    return deleteFolder
+            .ofType(Notification.Exit::class.java)
+            .retry(3)
+            .doOnError { error -> if (logErrors) log("Failed to delete directory $folderOnDevice: $error") }
+            .map { true }
+            .onErrorReturn { false }
+            .singleOrError()
+}
+
+fun AdbDevice.deleteFile(fileOnDevice: String, logErrors: Boolean, timeout: Pair<Int, TimeUnit> = 60 to SECONDS): Single<Boolean> {
+  val deleteFile = process(
+    commandAndArgs = listOf(adb, "-s", id, "shell", "rm", fileOnDevice),
+    timeout = timeout,
+    unbufferedOutput = true
+  )
+
+  return deleteFile
+    .ofType(Notification.Exit::class.java)
+    .retry(3)
+    .doOnError { error -> if (logErrors) log("Failed to delete file $fileOnDevice: $error") }
+    .map { true }
+    .onErrorReturn { false }
+    .singleOrError()
 }
 
 fun AdbDevice.redirectLogcatToFile(file: File): Single<Process> = Observable
         .fromCallable { file.parentFile.mkdirs() }
-        .flatMap { process(listOf(adb, "-s", this.id, "logcat"), redirectOutputTo = file, timeout = null) }
+        .flatMap { process(listOf(adb, "-s", id, "logcat"), redirectOutputTo = file, timeout = null) }
         .ofType(Notification.Start::class.java)
         .doOnError {
             when (it) {
@@ -146,4 +179,4 @@ fun AdbDevice.redirectLogcatToFile(file: File): Single<Process> = Observable
         }
         .map { it.process }
         .take(1)
-        .toSingle()
+        .singleOrError()

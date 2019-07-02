@@ -1,11 +1,8 @@
 package com.gojuno.commander.os
 
 import org.assertj.core.api.Assertions.assertThat
-import org.jetbrains.spek.api.Spek
-import org.jetbrains.spek.api.dsl.describe
-import org.jetbrains.spek.api.dsl.it
-import org.jetbrains.spek.api.dsl.on
-import java.io.File
+import org.spekframework.spek2.Spek
+import org.spekframework.spek2.style.specification.describe
 import java.util.concurrent.TimeUnit.MINUTES
 import java.util.concurrent.TimeUnit.SECONDS
 
@@ -22,7 +19,7 @@ class ProcessesSpec : Spek({
 
     describe("nanosToHumanReadableTime") {
 
-        on("convert 1 second") {
+        context("convert 1 second") {
 
             val result by memoized { SECONDS.toNanos(1).nanosToHumanReadableTime() }
 
@@ -31,16 +28,16 @@ class ProcessesSpec : Spek({
             }
         }
 
-        on("convert 59 seconds") {
+        context("convert 59 seconds") {
 
             val result by memoized { SECONDS.toNanos(59).nanosToHumanReadableTime() }
 
-            it("converts it to 59 second") {
+            it("converts it to 59 seconds") {
                 assertThat(result).isEqualTo("59 seconds")
             }
         }
 
-        on("convert 60 seconds") {
+        context("convert 60 seconds") {
 
             val result by memoized { SECONDS.toNanos(60).nanosToHumanReadableTime() }
 
@@ -49,7 +46,7 @@ class ProcessesSpec : Spek({
             }
         }
 
-        on("convert 61 seconds") {
+        context("convert 61 seconds") {
 
             val result by memoized { SECONDS.toNanos(61).nanosToHumanReadableTime() }
 
@@ -58,16 +55,16 @@ class ProcessesSpec : Spek({
             }
         }
 
-        on("convert 62 seconds") {
+        context("convert 62 seconds") {
 
             val result by memoized { SECONDS.toNanos(62).nanosToHumanReadableTime() }
 
-            it("converts it to 1 minute 2 second") {
+            it("converts it to 1 minute 2 seconds") {
                 assertThat(result).isEqualTo("1 minute 2 seconds")
             }
         }
 
-        on("convert 60 minutes") {
+        context("convert 60 minutes") {
 
             val result by memoized { MINUTES.toNanos(60).nanosToHumanReadableTime() }
 
@@ -76,7 +73,7 @@ class ProcessesSpec : Spek({
             }
         }
 
-        on("convert 61 minutes") {
+        context("convert 61 minutes") {
 
             val result by memoized { MINUTES.toNanos(61).nanosToHumanReadableTime() }
 
