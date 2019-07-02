@@ -12,8 +12,8 @@ Modules:
 Commander is [available on jcenter](https://jcenter.bintray.com/com/gojuno/commander).
 
 ```groovy
-compile 'com.gojuno.commander:os:some-version'
-compile 'com.gojuno.commander:android:some-version'
+compile 'com.gojuno.commander:os:${latestVersion}'
+compile 'com.gojuno.commander:android:${latestVersion}'
 ```
 
 All the releases and changelogs can be found on [Releases Page](https://github.com/gojuno/commander/releases).
@@ -43,6 +43,3 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ```
-
-[spoon]: https://github.com/square/spoon
-[test sharding]: https://developer.android.com/topic/libraries/testing-support-library/index.html#ajur-sharding
