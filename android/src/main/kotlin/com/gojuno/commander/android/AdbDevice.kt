@@ -1,3 +1,4 @@
+@file:Suppress("unused")
 package com.gojuno.commander.android
 
 data class AdbDevice(
