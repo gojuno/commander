@@ -15,15 +15,15 @@ import java.util.concurrent.TimeUnit.SECONDS
 import kotlin.system.exitProcess
 
 val androidHome: String by lazy { requireNotNull(System.getenv("ANDROID_HOME")) { "Please specify ANDROID_HOME env variable" } }
-val adb: String by lazy { "$androidHome${File.pathSeparator}platform-tools${File.pathSeparator}adb" }
+val adb: String by lazy { "$androidHome${File.separator}platform-tools${File.separator}adb" }
 private val buildTools: String? by lazy {
-    File(androidHome, "build-tools")
+    requireNotNull(File(androidHome, "build-tools")
             .listFiles()
             ?.sortedArray()
             ?.lastOrNull()
-            ?.absolutePath
+            ?.absolutePath) { "" }
 }
-val aapt: String by lazy { buildTools?.let { "$buildTools${File.pathSeparator}aapt" } ?: "" }
+val aapt: String by lazy { buildTools?.let { "$buildTools${File.separator}aapt" } ?: "" }
 
 internal fun Observable<Notification>.trimmedOutput() = this
         .ofType(Notification.Exit::class.java)
@@ -167,9 +167,9 @@ fun AdbDevice.deleteFile(fileOnDevice: String, logErrors: Boolean, timeout: Pair
     .singleOrError()
 }
 
-fun AdbDevice.redirectLogcatToFile(file: File): Single<Process> = Observable
+fun AdbDevice.redirectLogcatToFile(file: File): Single<Process> = Single
         .fromCallable { file.parentFile.mkdirs() }
-        .flatMap { process(listOf(adb, "-s", id, "logcat"), redirectOutputTo = file, timeout = null) }
+        .flatMapObservable { process(listOf(adb, "-s", id, "logcat"), redirectOutputTo = file, timeout = null) }
         .ofType(Notification.Start::class.java)
         .doOnError {
             when (it) {

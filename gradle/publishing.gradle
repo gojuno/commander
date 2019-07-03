@@ -100,7 +100,7 @@ bintray {
         publications = ['CommanderPublication']
 
         version {
-            name = projectVersion()
+            name = project.version
             vcsTag = gitTag()
 
             gpg {
